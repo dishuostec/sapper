@@ -1,6 +1,6 @@
 {
   "name": "@dishuostec/sapper",
-  "version": "0.27.18",
+  "version": "0.27.19",
   "description": "The next small thing in web development, powered by Svelte",
   "bin": {
     "sapper": "./sapper"

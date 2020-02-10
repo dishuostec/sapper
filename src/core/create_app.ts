@@ -209,7 +209,7 @@ function generate_server_manifest(
 			error: null
 		};
 		
-		export const template = ${JSON.stringify(template)}
+		export const template = ${JSON.stringify(template)};
 
 		export const build_dir = ${JSON.stringify(build_dir)};
 
@@ -243,7 +243,7 @@ function generate_server_manifest(
 
 		export const ssr = true;
 		
-		export const template = ${JSON.stringify(template)}
+		export const template = ${JSON.stringify(template)};
 		
 		const d = decodeURIComponent;
 

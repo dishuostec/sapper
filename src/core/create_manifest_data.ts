@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import svelte from 'svelte/compiler';
+import crypto from 'crypto';
 import { Page, PageComponent, ServerRoute, ManifestData } from '../interfaces';
 import { posixify, reserved_words } from '../utils';
 
@@ -13,19 +13,6 @@ export default function create_manifest_data(cwd: string, extensions: string = '
 		throw new Error(`As of Sapper 0.21, the routes/ directory should become src/routes/`);
 	}
 
-	function has_preload(file: string) {
-		const source = fs.readFileSync(path.join(cwd, file), 'utf-8');
-
-		if (/preload/.test(source)) {
-			try {
-				const { vars } = svelte.compile(source.replace(/<style\b[^>]*>[^]*?<\/style>/g, ''), { generate: false });
-				return vars.some((variable: any) => variable.module && variable.export_name === 'preload');
-			} catch (err) {}
-		}
-
-		return false;
-	}
-
 	function find_layout(file_name: string, component_name: string, dir: string = '') {
 		const ext = component_extensions.find((ext) => fs.existsSync(path.join(cwd, dir, `${file_name}${ext}`)));
 		const file = posixify(path.join(dir, `${file_name}${ext}`))
@@ -33,8 +20,7 @@ export default function create_manifest_data(cwd: string, extensions: string = '
 		return ext
 			? {
 				name: component_name,
-				file: file,
-				has_preload: has_preload(file)
+				file: file
 			}
 			: null;
 	}
@@ -47,16 +33,14 @@ export default function create_manifest_data(cwd: string, extensions: string = '
 		default: true,
 		type: 'layout',
 		name: '_default_layout',
-		file: null,
-		has_preload: false
+		file: null
 	};
 
 	const default_error: PageComponent = {
 		default: true,
 		type: 'error',
 		name: '_default_error',
-		file: null,
-		has_preload: false
+		file: null
 	};
 
 	function walk(
@@ -161,8 +145,7 @@ export default function create_manifest_data(cwd: string, extensions: string = '
 			else if (item.is_page) {
 				const component = {
 					name: get_slug(item.file),
-					file: item.file,
-					has_preload: has_preload(item.file)
+					file: item.file
 				};
 
 				components.push(component);
@@ -322,13 +305,31 @@ function get_slug(file: string) {
 		.replace(/[\\\/]index/, '')
 		.replace(/[\/\\]/g, '_')
 		.replace(/\.\w+$/, '')
-		.replace(/\[([^([]+)(?:\([^(]+\))?\]/g, '$$$1')
+		.replace(/\[(\.\.\.)?(?:(.+?)(\(.+?\))?)]/g, (
+			match,
+			spread,
+			content,
+			qualifier
+		) => {
+			return `${spread ? '$$' : ''}$${content}${hash(qualifier)}`
+		})
 		.replace(/[^a-zA-Z0-9_$]/g, c => {
 			return c === '.' ? '_' : `$${c.charCodeAt(0)}`
 		});
 
 	if (reserved_words.has(name)) name += '_';
 	return name;
+}
+
+function hash(data: string) {
+	if (!data) {
+		return '';
+	}
+
+	return '$_' + crypto.createHash('md5')
+		.update(data)
+		.digest("hex")
+		.slice(0, 6);
 }
 
 function get_pattern(segments: Part[][], add_trailing_slash: boolean) {

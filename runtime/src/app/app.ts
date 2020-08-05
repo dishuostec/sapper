@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import App from '@sapper/internal/App.svelte';
-import { root_preload, ErrorComponent, ignore, components, routes } from '@sapper/internal/manifest-client';
+import { root_comp, ErrorComponent, ignore, components, routes } from '@sapper/internal/manifest-client';
 import {
 	Target,
 	ScrollPosition,
@@ -108,6 +108,10 @@ export function select_target(url: URL): Target {
 
 	let path = extract_path(url);
 
+	if (path === '') {
+		path = '/';
+	}
+
 	// avoid accidental clashes between server routes and page routes
 	if (ignore.some(pattern => pattern.test(path))) return;
 
@@ -127,7 +131,7 @@ export function select_target(url: URL): Target {
 		}
 	}
 
-	if (!initial_data.ssr) {
+	if (initial_data.hashbang) {
 		const query: Query = extract_query(url.search);
 		const page = { host: location.host, path, query, params: {} };
 
@@ -258,16 +262,6 @@ async function render(redirect: Redirect, branch: any[], props: any, page: Page)
 		};
 		props.notify = stores.page.notify;
 
-		// first load — remove SSR'd <head> contents
-		const start = document.querySelector('#sapper-head-start');
-		const end = document.querySelector('#sapper-head-end');
-
-		if (start && end) {
-			while (start.nextSibling !== end) detach(start.nextSibling);
-			detach(start);
-			detach(end);
-		}
-
 		root_component = new App({
 			target,
 			props,
@@ -334,6 +328,7 @@ export async function hydrate_target(target: Target): Promise<{
 	};
 
 	if (!root_preloaded) {
+		const root_preload = root_comp.preload || (() => {});
 		root_preloaded = initial_data.preloaded[0] || await root_preload.call(preload_context, {
 			host: page.host,
 			path: page.path,
